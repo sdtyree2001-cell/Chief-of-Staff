@@ -1,378 +1,351 @@
+#!/usr/bin/env python3
 """
-Chief of Staff — Streamlit UI
-Aurivian / Festizio
+Chief of Staff UI — Aurivian
+=============================
+A clean, refined interface for conversing with your Chief of Staff agent.
+Light theme, sticky notes, briefs, action items, and real-time chat.
 """
 
 import streamlit as st
-import anthropic
 import json
+import os
+import anthropic
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
-from chief_of_staff import (
-    load_claude_md,
-    load_memory,
-    save_memory,
-    build_system_prompt,
-    append_log,
-    summarize_session,
-)
-
-# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
+# ── PAGE CONFIG ──────────────────────────────────────────────────────────────
 
 st.set_page_config(
-    page_title="Aurivian — Chief of Staff",
-    page_icon="◆",
+    page_title="Chief of Staff — Aurivian",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed"
 )
 
-# ── STYLES ────────────────────────────────────────────────────────────────────
-
+# Light theme CSS (Jony Ive aesthetic)
 st.markdown("""
 <style>
-  /* Dark, clean, minimal */
-  .stApp { background-color: #0f0f0f; }
-
-  [data-testid="stSidebar"] {
-    background-color: #141414;
-    border-right: 1px solid #222;
-  }
-
-  /* Hide default Streamlit header/footer */
-  #MainMenu, header, footer { visibility: hidden; }
-
-  /* Chat bubbles */
-  [data-testid="stChatMessage"] {
-    background-color: #1a1a1a;
-    border: 1px solid #222;
-    border-radius: 8px;
-    padding: 4px 8px;
-    margin-bottom: 8px;
-  }
-
-  /* Chat input */
-  [data-testid="stChatInputTextArea"] {
-    background-color: #1a1a1a !important;
-    border: 1px solid #333 !important;
-    color: #e0e0e0 !important;
-  }
-
-  /* Sidebar buttons */
-  .stButton > button {
-    background-color: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    color: #ccc;
-    border-radius: 6px;
-    width: 100%;
-    text-align: left;
-    font-size: 13px;
-    padding: 6px 12px;
-    margin-bottom: 2px;
-    transition: background 0.15s;
-  }
-  .stButton > button:hover {
-    background-color: #2a2a2a;
-    border-color: #444;
-    color: #fff;
-  }
-
-  /* Title area */
-  .cos-header {
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #555;
-    margin-bottom: 2px;
-  }
-  .cos-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #e0e0e0;
-    margin-bottom: 4px;
-  }
-  .cos-subtitle {
-    font-size: 12px;
-    color: #444;
-  }
-
-  /* Searching indicator */
-  .search-indicator {
-    font-size: 12px;
-    color: #555;
-    font-style: italic;
-    padding: 4px 0;
-  }
+    body {
+        background-color: #ffffff;
+        color: #333333;
+    }
+    .stApp {
+        background-color: #ffffff;
+    }
+    .main {
+        background-color: #ffffff;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .stTabs [aria-selected="true"] {
+        border-bottom-color: #000000;
+    }
+    h1, h2, h3 {
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+    .brief-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border-left: 4px solid #000000;
+        margin: 12px 0;
+    }
+    .action-item {
+        background-color: #f0f0f0;
+        padding: 12px;
+        border-radius: 6px;
+        margin: 8px 0;
+        border-left: 3px solid #888888;
+    }
+    .action-item.done {
+        background-color: #e8f5e9;
+        border-left-color: #4caf50;
+    }
+    .sticky-note {
+        background-color: #fffacd;
+        padding: 12px;
+        border-radius: 4px;
+        margin: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border: 1px solid #f0e68c;
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .status-pending { background-color: #fff3cd; color: #856404; }
+    .status-in_progress { background-color: #cfe2ff; color: #084298; }
+    .status-done { background-color: #d1e7dd; color: #0f5132; }
+    .status-blocked { background-color: #f8d7da; color: #842029; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── SESSION STATE INIT ────────────────────────────────────────────────────────
+# ── PATHS ────────────────────────────────────────────────────────────────────
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+BASE_DIR = Path(__file__).parent
+ACTION_ITEMS_FILE = BASE_DIR / "action_items.json"
+AURIVIAN_STATE_FILE = BASE_DIR / "aurivian_state.md"
+COMPETITIVE_FILE = BASE_DIR / "competitive_landscape.md"
+FUNDING_FILE = BASE_DIR / "funding_tracker.md"
+DEBRIEF_FILE = BASE_DIR / "debrief_log.md"
+STICKY_NOTES_FILE = BASE_DIR / "sticky_notes.json"
 
-if "memory" not in st.session_state:
-    st.session_state.memory = load_memory()
-    st.session_state.memory["session_count"] = st.session_state.memory.get("session_count", 0) + 1
-    st.session_state.memory["last_session"] = datetime.now().isoformat()
-    save_memory(st.session_state.memory)
+# ── SESSION STATE ────────────────────────────────────────────────────────────
 
-if "initialized" not in st.session_state:
-    st.session_state.initialized = False
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-if "pending_input" not in st.session_state:
-    st.session_state.pending_input = None
+if "sticky_notes" not in st.session_state:
+    # Load sticky notes from file
+    if STICKY_NOTES_FILE.exists():
+        with open(STICKY_NOTES_FILE) as f:
+            st.session_state.sticky_notes = json.load(f).get("notes", [])
+    else:
+        st.session_state.sticky_notes = []
 
-# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+# ── UTILITIES ────────────────────────────────────────────────────────────────
 
-with st.sidebar:
-    st.markdown("""
-    <div class="cos-header">Aurivian</div>
-    <div class="cos-title">◆ Chief of Staff</div>
-    <div class="cos-subtitle">Agent #1 · Always On</div>
-    """, unsafe_allow_html=True)
-
-    st.divider()
-
-    memory = st.session_state.memory
-    last = memory.get("last_session")
-    if last:
+def load_json(path: Path) -> dict:
+    """Load JSON file safely."""
+    if path.exists():
         try:
-            dt = datetime.fromisoformat(last)
-            st.caption(f"Session #{memory.get('session_count', 1)}  ·  {dt.strftime('%b %d  %H:%M')}")
-        except Exception:
-            pass
+            with open(path) as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
-    st.markdown("**Quick actions**")
+def load_markdown(path: Path) -> str:
+    """Load markdown file safely."""
+    if path.exists():
+        return path.read_text()
+    return "No data available"
 
-    if st.button("◎  Status brief", key="btn_debrief"):
-        st.session_state.pending_input = (
-            "Give me your status brief. What have you been working on "
-            "while I was away? What did you find? What do you recommend?"
-        )
+def save_sticky_notes():
+    """Save sticky notes to file."""
+    with open(STICKY_NOTES_FILE, "w") as f:
+        json.dump({"notes": st.session_state.sticky_notes}, f, indent=2)
 
-    if st.button("⊞  All threads", key="btn_threads"):
-        st.session_state.pending_input = "List all active threads and where we stand on each one."
+def get_latest_brief() -> Optional[str]:
+    """Extract the latest brief from debrief_log.md."""
+    if not DEBRIEF_FILE.exists():
+        return None
+    
+    content = DEBRIEF_FILE.read_text()
+    briefs = content.split("## Cycle:")
+    
+    if len(briefs) > 1:
+        return "## Cycle:" + briefs[-1].strip()
+    return None
 
-    if st.button("↺  New session", key="btn_new"):
-        # Summarize before clearing
-        history = [
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.get("messages", [])
-            if m["role"] in ("user", "assistant")
-        ]
-        if history:
-            client = anthropic.Anthropic()
-            summarize_session(client, history, st.session_state.memory)
-        st.session_state.messages = []
-        st.session_state.initialized = False
-        st.session_state.pending_input = None
-        st.rerun()
+def get_status_badge(status: str) -> str:
+    """Return HTML badge for status."""
+    status_class = f"status-{status}"
+    return f'<span class="status-badge {status_class}">{status.upper()}</span>'
 
-    st.divider()
-    st.markdown("**Active threads**")
+# ── HEADER ───────────────────────────────────────────────────────────────────
 
-    threads = [
-        ("1", "Zee's build spec"),
-        ("2", "argenx / Vyvgart"),
-        ("3", "UCB / Bimzelx"),
-        ("4", "Product vision"),
-        ("5", "Agent team"),
-    ]
-    for num, name in threads:
-        if st.button(f"{num}  {name}", key=f"thread_{num}"):
-            st.session_state.pending_input = (
-                f"Let's work on thread {num}: '{name}'. "
-                f"What's the current state and what's the next move?"
-            )
+col1, col2 = st.columns([6, 1])
+with col1:
+    st.title("🤖 Chief of Staff")
+    st.markdown("*Your thought partner for Aurivian*")
 
-    st.divider()
+with col2:
+    st.caption(f"Last update: {datetime.now().strftime('%H:%M')}")
 
-    with st.expander("Memory state", expanded=False):
-        last_summary = memory.get("last_session_summary", "")
-        if last_summary:
-            st.markdown("**Last session**")
-            st.caption(last_summary)
+st.divider()
 
-        action_items = memory.get("last_action_items", [])
-        if action_items:
-            st.markdown("**Action items**")
-            for a in action_items:
-                st.caption(f"· {a}")
+# ── TABS ─────────────────────────────────────────────────────────────────────
 
-        findings = memory.get("findings", [])
-        if findings:
-            st.markdown("**Recent findings**")
-            for f in findings[-3:]:
-                st.caption(f)
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "💬 Conversation", 
+    "📋 Latest Brief", 
+    "✅ Action Items", 
+    "📌 Sticky Notes", 
+    "📊 Context"
+])
 
-        questions = memory.get("open_questions", [])
-        if questions:
-            st.markdown("**Open questions**")
-            for q in questions:
-                st.caption(f"· {q}")
+# ── TAB 1: CONVERSATION ──────────────────────────────────────────────────────
 
-        if not last_summary and not action_items and not findings and not questions:
-            st.caption("No notes yet.")
+with tab1:
+    st.subheader("Chat with Chief of Staff")
+    st.markdown("Ask questions, brainstorm ideas, or get updates on specific topics.")
+    
+    # Chat history
+    for i, msg in enumerate(st.session_state.chat_history):
+        if msg["role"] == "user":
+            with st.chat_message("user"):
+                st.write(msg["content"])
+        else:
+            with st.chat_message("assistant"):
+                st.write(msg["content"])
+    
+    # Input
+    user_input = st.chat_input("What's on your mind?")
+    
+    if user_input:
+        # Add user message to history
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_input
+        })
+        
+        # Load context
+        context = {
+            "action_items": load_json(ACTION_ITEMS_FILE),
+            "aurivian_state": load_markdown(AURIVIAN_STATE_FILE),
+            "competitive_landscape": load_markdown(COMPETITIVE_FILE),
+            "funding": load_markdown(FUNDING_FILE),
+        }
+        
+        # Build system prompt with context
+        system_prompt = f"""You are the Chief of Staff for Aurivian — a sharp, pragmatic thought partner.
 
-# ── MAIN CHAT AREA ────────────────────────────────────────────────────────────
+You have access to current company state:
+- Action items and priorities
+- Competitive landscape
+- Funding opportunities
+- Company strategy and vision
 
+Be direct, specific, and actionable. Match the founder's energy. Use real numbers and file paths.
+
+Current Context:
+{json.dumps(context, indent=2)}"""
+        
+        # Call Claude
+        with st.spinner("Thinking..."):
+            try:
+                client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+                response = client.messages.create(
+                    model="claude-opus-4-5",
+                    max_tokens=1000,
+                    system=system_prompt,
+                    messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.chat_history]
+                )
+                
+                assistant_message = response.content[0].text
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": assistant_message
+                })
+                
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+
+# ── TAB 2: LATEST BRIEF ──────────────────────────────────────────────────────
+
+with tab2:
+    st.subheader("Latest Chief of Staff Brief")
+    
+    brief = get_latest_brief()
+    if brief:
+        st.markdown(f"""<div class="brief-box">{brief}</div>""", unsafe_allow_html=True)
+    else:
+        st.info("No briefs yet. The Chief of Staff will generate briefs every 2 hours.")
+
+# ── TAB 3: ACTION ITEMS ──────────────────────────────────────────────────────
+
+with tab3:
+    st.subheader("Action Items")
+    
+    action_items = load_json(ACTION_ITEMS_FILE)
+    
+    if action_items and "work_streams" in action_items:
+        for stream_key, stream in action_items["work_streams"].items():
+            st.markdown(f"### {stream.get('name', stream_key)}")
+            st.markdown(stream.get('purpose', ''))
+            
+            for item in stream.get("items", []):
+                cols = st.columns([1, 3, 1, 1])
+                
+                with cols[0]:
+                    status = item.get("status", "pending")
+                    st.markdown(get_status_badge(status), unsafe_allow_html=True)
+                
+                with cols[1]:
+                    st.markdown(f"**{item['title']}**")
+                    st.caption(item.get("description", ""))
+                
+                with cols[2]:
+                    priority = item.get("priority", "medium")
+                    st.caption(f"📌 {priority}")
+                
+                with cols[3]:
+                    due = item.get("due", "TBD")
+                    st.caption(f"📅 {due}")
+    else:
+        st.info("No action items loaded yet.")
+
+# ── TAB 4: STICKY NOTES ──────────────────────────────────────────────────────
+
+with tab4:
+    st.subheader("Sticky Notes — Ideas & Brainstorms")
+    st.markdown("Post ideas here as you brainstorm with the Chief of Staff.")
+    
+    # Add new note
+    cols = st.columns([4, 1])
+    with cols[0]:
+        new_note = st.text_input("New idea:", placeholder="Type an idea or thought...")
+    with cols[1]:
+        if st.button("➕ Add", key="add_note"):
+            if new_note:
+                st.session_state.sticky_notes.append({
+                    "id": len(st.session_state.sticky_notes),
+                    "text": new_note,
+                    "created_at": datetime.now().isoformat()
+                })
+                save_sticky_notes()
+                st.rerun()
+    
+    # Display notes in a grid
+    if st.session_state.sticky_notes:
+        cols = st.columns(3)
+        for i, note in enumerate(st.session_state.sticky_notes):
+            with cols[i % 3]:
+                st.markdown(f"""<div class="sticky-note">{note['text']}</div>""", unsafe_allow_html=True)
+                if st.button("🗑️ Delete", key=f"delete_{note['id']}", use_container_width=True):
+                    st.session_state.sticky_notes.pop(i)
+                    save_sticky_notes()
+                    st.rerun()
+    else:
+        st.markdown("*No notes yet. Add your first idea!*")
+
+# ── TAB 5: CONTEXT ───────────────────────────────────────────────────────────
+
+with tab5:
+    st.subheader("Company Context")
+    
+    subcols = st.columns(2)
+    
+    with subcols[0]:
+        with st.expander("📍 Aurivian State", expanded=True):
+            st.markdown(load_markdown(AURIVIAN_STATE_FILE))
+    
+    with subcols[1]:
+        with st.expander("🎯 Competitive Landscape"):
+            st.markdown(load_markdown(COMPETITIVE_FILE))
+    
+    with subcols[0]:
+        with st.expander("💰 Funding Opportunities"):
+            st.markdown(load_markdown(FUNDING_FILE))
+    
+    with subcols[1]:
+        with st.expander("📂 Raw JSON (Action Items)"):
+            st.json(load_json(ACTION_ITEMS_FILE))
+
+# ── FOOTER ───────────────────────────────────────────────────────────────────
+
+st.divider()
 st.markdown("""
-<div style="padding: 16px 0 8px 0;">
-  <span style="font-size:18px; font-weight:700; color:#e0e0e0;">Chief of Staff</span>
-  <span style="font-size:12px; color:#444; margin-left:12px;">Aurivian · Festizio</span>
-</div>
-""", unsafe_allow_html=True)
-
-# Render existing messages
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# ── RESPONSE ENGINE ───────────────────────────────────────────────────────────
-
-def get_response(user_text: str):
-    context = load_claude_md()
-    memory  = st.session_state.memory
-    system  = build_system_prompt(context, memory)
-
-    # Build API message history (exclude system)
-    api_messages = [
-        {"role": m["role"], "content": m["content"]}
-        for m in st.session_state.messages
-        if m["role"] in ("user", "assistant")
-    ]
-
-    client = anthropic.Anthropic()
-
-    with st.chat_message("assistant"):
-        placeholder   = st.empty()
-        full_response = ""
-
-        def stream_to_placeholder(msgs):
-            nonlocal full_response
-            text_buf = ""
-            tool_block = None
-
-            with client.messages.stream(
-                model="claude-opus-4-5",
-                max_tokens=4096,
-                system=system,
-                messages=msgs,
-                tools=[{"type": "web_search_20250305", "name": "web_search"}],
-            ) as stream:
-                for event in stream:
-                    if hasattr(event, "type"):
-                        if event.type == "content_block_delta" and hasattr(event.delta, "text"):
-                            text_buf    += event.delta.text
-                            full_response += event.delta.text
-                            placeholder.markdown(full_response + "▌")
-                        elif event.type == "content_block_start":
-                            cb = getattr(event, "content_block", None)
-                            if cb and getattr(cb, "type", None) == "tool_use":
-                                tool_block = cb
-
-                final = stream.get_final_message()
-
-            return final, tool_block
-
-        final, tool_block = stream_to_placeholder(api_messages)
-
-        # Handle tool use (web search)
-        if final.stop_reason == "tool_use":
-            for block in final.content:
-                if hasattr(block, "type") and block.type == "tool_use":
-                    query = block.input.get("query", "")
-                    placeholder.markdown(
-                        full_response
-                        + f"\n\n*Searching: {query}...*"
-                    )
-
-                    # Append tool use + result to messages
-                    api_messages.append({
-                        "role": "assistant",
-                        "content": final.content,
-                    })
-                    api_messages.append({
-                        "role": "user",
-                        "content": [{
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": (
-                                "Web search executed. Synthesize findings from your "
-                                "knowledge and the search context to answer fully."
-                            ),
-                        }],
-                    })
-
-                    # Continue streaming after tool result
-                    final2, _ = stream_to_placeholder(api_messages)
-
-        placeholder.markdown(full_response)
-
-    # Persist
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
-
-    append_log(
-        f"**Session #{memory['session_count']}**\n\n"
-        f"**YOU:** {user_text}\n\n"
-        f"**CHIEF OF STAFF:** {full_response}"
-    )
-
-    lower = full_response.lower()
-    if any(w in lower for w in ["found", "discovered", "research shows", "according to"]):
-        snippet = full_response.split("\n\n")[0][:250]
-        memory.setdefault("findings", []).append(
-            f"[{datetime.now().strftime('%m/%d %H:%M')}] {snippet}"
-        )
-        memory["findings"] = memory["findings"][-20:]
-        save_memory(memory)
-        st.session_state.memory = memory
-
-# ── AUTO-OPEN WITH STATUS BRIEF ───────────────────────────────────────────────
-
-if not st.session_state.initialized and not st.session_state.messages:
-    st.session_state.initialized = True
-    opening = (
-        "i'm back. what have you been working on while i was gone? "
-        "give me the status brief and let's figure out what to do next."
-    )
-    st.session_state.messages.append({"role": "user", "content": opening})
-    with st.chat_message("user"):
-        st.markdown(opening)
-    get_response(opening)
-
-# ── SIDEBAR BUTTON INJECTION ──────────────────────────────────────────────────
-
-if st.session_state.pending_input:
-    text = st.session_state.pending_input
-    st.session_state.pending_input = None
-    st.session_state.messages.append({"role": "user", "content": text})
-    with st.chat_message("user"):
-        st.markdown(text)
-    get_response(text)
-
-# ── CHAT INPUT ────────────────────────────────────────────────────────────────
-
-if prompt := st.chat_input("Message your Chief of Staff..."):
-    # Handle slash commands
-    if prompt.lower().startswith("/research "):
-        prompt = f"Research this right now and tell me what you find: {prompt[10:].strip()}"
-    elif prompt.lower() == "/debrief":
-        prompt = "Give me a quick status brief across all active threads."
-    elif prompt.lower() == "/threads":
-        prompt = "List all active threads and where we stand on each one."
-    elif prompt.lower().startswith("/note "):
-        note = prompt[6:].strip()
-        st.session_state.memory.setdefault("open_questions", []).append(note)
-        save_memory(st.session_state.memory)
-        with st.chat_message("assistant"):
-            st.markdown(f"Noted: *{note}*")
-        st.session_state.messages.append({"role": "assistant", "content": f"Noted: *{note}*"})
-        st.rerun()
-
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    get_response(prompt)
+---
+**Chief of Staff Agent** • Runs every 2 hours • Updates auto-commit to GitHub  
+[View on GitHub](https://github.com/sdtyree2001-cell/Chief-of-Staff) | Last cycle: Check debrief_log.md
+""")
