@@ -73,7 +73,8 @@ Remember: This is a 2-hour cycle. You won't solve everything, but move the needl
 
 def run_agent_cycle(context: dict) -> str:
     """Run one cycle of the Chief of Staff agent."""
-    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    client = anthropic.Anthropic(api_key=api_key)
     
     # Build the context message
     context_msg = f"""
