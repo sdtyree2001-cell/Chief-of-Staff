@@ -1,0 +1,188 @@
+{
+  "last_updated": "2026-06-16T10:31:00Z",
+  "current_cycle": "2026-06-16T12:30:00Z",
+  "work_streams": {
+    "aurivian_oversight": {
+      "name": "Aurivian Oversight",
+      "purpose": "Track company priorities, strategy execution, and next best actions",
+      "items": [
+        {
+          "id": "align-001",
+          "title": "Team Alignment Session Prep",
+          "description": "Prepare talking points for this week's alignment session with Zeinab, Zee, Michail, Ross. Focus: vision alignment, role clarity, founder integration, timeline for team dedication.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        },
+        {
+          "id": "align-002",
+          "title": "Decision Authority Map",
+          "description": "Create org chart showing decision authority: Who decides on pricing? Product roadmap? Sales strategy? Helps clarify roles and prevent conflicts.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        },
+        {
+          "id": "bd-001",
+          "title": "Weekly Terumo Status",
+          "description": "Check: Is Terumo moving? Do we have a contact? What's blocking? Follow up with Ross on status.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "bd-002",
+          "title": "Argenx Pilot Paperwork",
+          "description": "Check: What does Argenx (Rico) need from us to close? Contract? SOW? Pricing? Pilot timeline?",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        }
+      ]
+    },
+    "competitive_intelligence": {
+      "name": "Competitive Intelligence",
+      "purpose": "Monitor AI/GenAI/agentic vendors, track market moves, identify threats and opportunities",
+      "items": [
+        {
+          "id": "comp-001",
+          "title": "Snowflake Cortex Q2 Updates",
+          "description": "Search for Snowflake Cortex announcements (June 2026): new agent templates, healthcare compliance, pricing changes, pharma case studies.",
+          "status": "pending",
+          "priority": "medium",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "comp-002",
+          "title": "Sorcero Market Moves",
+          "description": "Any recent Sorcero funding, customer wins/losses, pricing changes, GenAI product launches?",
+          "status": "pending",
+          "priority": "medium",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "comp-003",
+          "title": "Copilot + Healthcare",
+          "description": "Microsoft Copilot announcements for healthcare/pharma. New agentic AI features?",
+          "status": "pending",
+          "priority": "medium",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "comp-004",
+          "title": "Consultancy Moves (ZS, IQVIA, Axtria)",
+          "description": "Any new MA intelligence products? AI hiring? Partnerships?",
+          "status": "pending",
+          "priority": "low",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        }
+      ]
+    },
+    "business_development": {
+      "name": "Business Development",
+      "purpose": "Extract top 3 opportunities from BDR agent, track hot leads, accelerate sales pipeline",
+      "items": [
+        {
+          "id": "bdr-001",
+          "title": "BDR Agent: Top 3 Opportunities This Week",
+          "description": "Run BDR agent (or check latest outputs/prospects/*.csv). Identify top 3 companies by fit score. Summarize: company, trigger event, fit rationale, next action.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "bdr-002",
+          "title": "Pipeline Status: Hot Leads",
+          "description": "Which prospects from last week are still hot? Any follow-ups needed? Where's the bottleneck (prospect? capability? messaging)?",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-16"
+        },
+        {
+          "id": "sales-001",
+          "title": "Accelerated Sales Motion Feasibility",
+          "description": "Founder question: Can we automate parts of sales (BDR outreach, research, personalized demo, Pulse email)? Research: Pharma security constraints on videos/links/attachments. Draft spec.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        },
+        {
+          "id": "demo-001",
+          "title": "Demo Quality Check",
+          "description": "Are our demos nailing the story? Is it clear why we win vs. Sorcero/Snowflake/consultancies? Feedback for Ross's next demo.",
+          "status": "pending",
+          "priority": "medium",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        }
+      ]
+    },
+    "funding": {
+      "name": "Funding Opportunities",
+      "purpose": "Identify angels, grants, and funding pathways to extend runway",
+      "items": [
+        {
+          "id": "fund-001",
+          "title": "Angel Prospect List: Warm Intros",
+          "description": "Build list of 10 ex-GSK, Randy (Stealth), other angels mentioned by founder. Research backgrounds. Strategy for warm intros.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        },
+        {
+          "id": "fund-002",
+          "title": "SBIR Phase I Eligibility Check",
+          "description": "Is Aurivian eligible for NIH SBIR (National Institutes of Health Small Business Innovation Research)? Research NIH focus areas (NCCIH, NLM) aligned with our work. Timeline?",
+          "status": "pending",
+          "priority": "medium",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-17"
+        },
+        {
+          "id": "fund-003",
+          "title": "Angel Pitch One-Pager",
+          "description": "Draft 1-pager for angels: problem, solution, market, why now, why us, ask. Tie to margin-positive ops model and AI-native strategy.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-18"
+        },
+        {
+          "id": "fund-004",
+          "title": "6-Month Runway Narrative",
+          "description": "If we raise $300-500K, what does that buy us? Team fully dedicated? Product polish? New hires? Be specific on use of funds.",
+          "status": "pending",
+          "priority": "high",
+          "assigned_to": "chief_of_staff",
+          "due": "2026-06-18"
+        }
+      ]
+    }
+  },
+  "breaking_news_alerts": {
+    "enabled": true,
+    "threshold": "material change to strategy, major competitive move, urgent opportunity, blocking issue",
+    "notification_method": "instant (email/Slack)",
+    "examples": [
+      "Sorcero announces acquisition or major funding",
+      "New pharma uses Snowflake Cortex + agents (validates internal build threat)",
+      "BDR finds a company that just fired all consultants (hot prospect)",
+      "Major competitive product launch",
+      "Funding opportunity closes (time-sensitive)",
+      "Key customer signals urgency"
+    ]
+  },
+  "notes": "This is the Chief of Staff work queue. Items are added/updated by the founder and the Chief of Staff. Status moves: pending → in_progress → blocked/done. Breaking news alerts interrupt the regular 2-hour cycle if material enough."
+}

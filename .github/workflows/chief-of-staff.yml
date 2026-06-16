@@ -1,0 +1,50 @@
+name: Chief of Staff Agent
+
+on:
+  schedule:
+    # Run every 2 hours
+    - cron: '0 */2 * * *'
+  
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  chief-of-staff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run Chief of Staff Agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python chief_of_staff_runner.py
+      
+      - name: Commit and push updates
+        run: |
+          git config --global user.name "Chief of Staff Bot"
+          git config --global user.email "chief-of-staff@aurivian.ai"
+          
+          # Stage tracking files
+          git add action_items.json aurivian_state.md competitive_landscape.md funding_tracker.md debrief_log.md
+          
+          # Only commit if there are changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Chief of Staff: Automated cycle at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push
+          fi
